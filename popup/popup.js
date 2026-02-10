@@ -92,10 +92,7 @@ function setupEventListeners() {
     updateSubmitState();
     updatePreview();
   });
-  document.getElementById('repoSelect').addEventListener('change', () => {
-    updateSubmitState();
-    updatePreview();
-  });
+  // Repo checkbox changes are handled via event delegation in populateRepos
   document.getElementById('consoleErrors').addEventListener('input', updatePreview);
 
   // Screenshot
@@ -367,34 +364,72 @@ function removeScreenshot() {
 
 async function populateRepos() {
   const { repos = [] } = await chrome.storage.local.get('repos');
-  const select = document.getElementById('repoSelect');
-
-  // Keep the placeholder, remove the rest
-  while (select.options.length > 1) select.remove(1);
+  const container = document.getElementById('repoCheckboxes');
+  container.innerHTML = '';
 
   repos.forEach(repo => {
-    const opt = document.createElement('option');
-    opt.value = repo;
-    opt.textContent = repo;
-    select.appendChild(opt);
+    const id = `repo-cb-${repo.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    const item = document.createElement('div');
+    item.className = 'repo-checkbox-item';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = id;
+    cb.value = repo;
+    // Auto-check if there's only one repo
+    if (repos.length === 1) {
+      cb.checked = true;
+      item.classList.add('checked');
+    }
+
+    const lbl = document.createElement('label');
+    lbl.htmlFor = id;
+    lbl.textContent = repo;
+
+    item.appendChild(cb);
+    item.appendChild(lbl);
+    container.appendChild(item);
+
+    cb.addEventListener('change', () => {
+      item.classList.toggle('checked', cb.checked);
+      updateSubmitState();
+      updatePreview();
+    });
+
+    item.addEventListener('click', (e) => {
+      if (e.target !== cb) {
+        cb.checked = !cb.checked;
+        item.classList.toggle('checked', cb.checked);
+        updateSubmitState();
+        updatePreview();
+      }
+    });
   });
+}
+
+function getSelectedRepos() {
+  return Array.from(document.querySelectorAll('#repoCheckboxes input:checked')).map(cb => cb.value);
 }
 
 // ── Form ──────────────────────────────────────────────────────────
 
 function updateSubmitState() {
   const desc = document.getElementById('description').value.trim();
-  const repo = document.getElementById('repoSelect').value;
-  document.getElementById('submitBtn').disabled = !desc || !repo;
+  const repos = getSelectedRepos();
+  document.getElementById('submitBtn').disabled = !desc || repos.length === 0;
 }
 
 function buildPrompt() {
   const description = document.getElementById('description').value.trim();
   const consoleErrors = document.getElementById('consoleErrors').value.trim();
-  const repo = document.getElementById('repoSelect').value;
+  const repos = getSelectedRepos();
 
   let prompt = '';
-  if (repo) prompt += `Repository: ${repo}\n\n`;
+  if (repos.length === 1) {
+    prompt += `Repository: ${repos[0]}\n\n`;
+  } else if (repos.length > 1) {
+    prompt += `Repositories: ${repos.join(', ')}\n\n`;
+  }
   prompt += description;
 
   const parts = [];
@@ -422,8 +457,9 @@ function updatePreview() {
 
 async function submitTask() {
   const description = document.getElementById('description').value.trim();
-  const repo = document.getElementById('repoSelect').value;
-  if (!description || !repo) return;
+  const repos = getSelectedRepos();
+  if (!description || repos.length === 0) return;
+  const repo = repos.join(', ');
 
   const btn = document.getElementById('submitBtn');
   const errorBlock = document.getElementById('submitError');

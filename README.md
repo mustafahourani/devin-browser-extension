@@ -29,7 +29,7 @@ The wizard validates your API key against Devin's API in real time. After setup,
 4. Write a task description
 5. (Optional) Click **Capture Page** to attach a screenshot of what you're looking at
 6. (Optional) Paste browser errors if something is broken on the page
-7. Select a repo and hit **Start Devin Session**
+7. Select one or more repos and hit **Start Devin Session**
 
 The extension automatically includes the page URL and any selected text as context. When Devin finishes and creates a PR, you'll get a browser notification. Click it to go straight to the PR on GitHub.
 
@@ -40,6 +40,7 @@ The extension automatically includes the page URL and any selected text as conte
 - **Browser error input**: optional collapsible field to paste console errors, with a built-in plain-language guide for non-technical users on how to find them (right-click > Inspect > Console)
 - **Prompt preview**: expand "Preview what Devin will see" to review the full assembled prompt (description + URL + selected text + errors) before sending
 - **Page screenshot capture**: click "Capture Page" to take a screenshot of the current tab. Shows a thumbnail preview before submitting. The screenshot is uploaded to Devin's attachment API and included in the session prompt so Devin can see what you see
+- **Multi-repo selection**: select one or more repositories per task using checkboxes. Useful for cross-repo tasks where Devin needs to work across multiple codebases
 - **Sensitive URL warnings**: if the page URL contains tokens, passwords, session IDs, or other secrets (`token=`, `password=`, `secret=`, `key=`, `auth=`, `session=`), a yellow warning banner appears before you submit
 
 ### Session Tracking
