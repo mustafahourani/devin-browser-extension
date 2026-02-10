@@ -427,7 +427,7 @@ a:hover {
 
 /* === Context Section === */
 .context-section {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .context-url {
@@ -511,12 +511,11 @@ a:hover {
 .form-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
 /* === Screenshot === */
 .screenshot-section {
-  margin: -2px 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -630,7 +629,6 @@ a:hover {
 }
 
 .console-section {
-  margin: -4px 0;
 }
 
 .hint {
