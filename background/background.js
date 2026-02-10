@@ -95,6 +95,10 @@ async function handleMessage(msg) {
       return handleVerifyApiKey(msg.apiKey);
     case 'createSession':
       return handleCreateSession(msg.data);
+    case 'captureTab':
+      return handleCaptureTab();
+    case 'uploadScreenshot':
+      return handleUploadScreenshot(msg.dataUrl);
     case 'clearBadge':
       await chrome.storage.session.set({ badgeCount: 0 });
       chrome.action.setBadgeText({ text: '' });
@@ -133,6 +137,55 @@ async function handleCreateSession({ prompt, repo, description }) {
     return { success: true, data: session };
   } catch (err) {
     return { success: false, error: err.message, details: err.details || '' };
+  }
+}
+
+// ── Screenshot Capture & Upload ───────────────────────────────────
+
+async function handleCaptureTab() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return null;
+    const dataUrl = await chrome.tabs.captureVisibleTab(null, { format: 'png' });
+    return dataUrl;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function handleUploadScreenshot(dataUrl) {
+  try {
+    const apiKey = await getApiKey();
+
+    // Convert data URL to blob
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+
+    const formData = new FormData();
+    formData.append('file', blob, 'screenshot.png');
+
+    const uploadResp = await fetch(`${DEVIN_API_BASE}/attachments`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      body: formData,
+    });
+
+    if (!uploadResp.ok) {
+      return { success: false, error: `Upload failed: HTTP ${uploadResp.status}` };
+    }
+
+    // The API returns the file URL as a plain string (not JSON)
+    const contentType = uploadResp.headers.get('content-type') || '';
+    let fileUrl = '';
+    if (contentType.includes('application/json')) {
+      const data = await uploadResp.json();
+      fileUrl = (typeof data === 'string') ? data : (data.url || data.file_url || data.attachment_url || '');
+    } else {
+      fileUrl = (await uploadResp.text()).trim();
+    }
+    return { success: !!fileUrl, url: fileUrl };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 }
 

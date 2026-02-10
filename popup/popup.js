@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 let capturedUrl = '';
 let capturedSelection = '';
+let capturedScreenshot = null; // data URL from captureVisibleTab
 let wizardRepos = [];
 
 // ── Init ──────────────────────────────────────────────────────────
@@ -96,6 +97,10 @@ function setupEventListeners() {
     updatePreview();
   });
   document.getElementById('consoleErrors').addEventListener('input', updatePreview);
+
+  // Screenshot
+  document.getElementById('capturePageBtn').addEventListener('click', captureScreenshot);
+  document.getElementById('removeScreenshot').addEventListener('click', removeScreenshot);
 
   // Console toggle
   document.getElementById('toggleConsole').addEventListener('click', () => {
@@ -326,6 +331,38 @@ async function captureContext() {
   updatePreview();
 }
 
+// ── Screenshot ────────────────────────────────────────────────────
+
+async function captureScreenshot() {
+  const btn = document.getElementById('capturePageBtn');
+  btn.disabled = true;
+  btn.textContent = 'Capturing...';
+
+  try {
+    const dataUrl = await chrome.runtime.sendMessage({ action: 'captureTab' });
+    if (dataUrl && dataUrl.startsWith('data:')) {
+      capturedScreenshot = dataUrl;
+      document.getElementById('screenshotThumb').src = dataUrl;
+      document.getElementById('screenshotPreview').classList.remove('hidden');
+      updatePreview();
+    } else {
+      showToast('Could not capture page', 'error');
+    }
+  } catch (err) {
+    showToast('Could not capture page', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Capture Page';
+  }
+}
+
+function removeScreenshot() {
+  capturedScreenshot = null;
+  document.getElementById('screenshotPreview').classList.add('hidden');
+  document.getElementById('screenshotThumb').src = '';
+  updatePreview();
+}
+
 // ── Repos ─────────────────────────────────────────────────────────
 
 async function populateRepos() {
@@ -369,6 +406,10 @@ function buildPrompt() {
     prompt += '\n\n---\nContext:\n' + parts.join('\n');
   }
 
+  if (capturedScreenshot) {
+    prompt += '\n\nATTACHMENT:"(screenshot will be uploaded)"';
+  }
+
   return prompt;
 }
 
@@ -391,15 +432,40 @@ async function submitTask() {
   errorBlock.classList.add('hidden');
 
   try {
+    // Upload screenshot first if one was captured
+    let attachmentUrl = null;
+    if (capturedScreenshot) {
+      btn.innerHTML = '<span class="spinner"></span> Uploading screenshot...';
+      const uploadResult = await chrome.runtime.sendMessage({
+        action: 'uploadScreenshot',
+        dataUrl: capturedScreenshot,
+      });
+      if (uploadResult.success && uploadResult.url) {
+        attachmentUrl = uploadResult.url;
+      } else {
+        showToast('Screenshot upload failed, submitting without it', 'error');
+      }
+    }
+
+    // Build prompt, replacing placeholder with real attachment URL
+    let prompt = buildPrompt();
+    if (attachmentUrl) {
+      prompt = prompt.replace('ATTACHMENT:"(screenshot will be uploaded)"', `ATTACHMENT:"${attachmentUrl}"`);
+    } else {
+      prompt = prompt.replace('\n\nATTACHMENT:"(screenshot will be uploaded)"', '');
+    }
+
+    btn.innerHTML = '<span class="spinner"></span> Submitting...';
     const response = await chrome.runtime.sendMessage({
       action: 'createSession',
-      data: { prompt: buildPrompt(), repo, description },
+      data: { prompt, repo, description },
     });
 
     if (response.success) {
       document.getElementById('description').value = '';
       document.getElementById('consoleErrors').value = '';
       document.getElementById('previewSection').classList.add('hidden');
+      removeScreenshot();
       showToast('Session started!', 'success');
       switchTab('sessions');
     } else {

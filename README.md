@@ -27,8 +27,9 @@ The wizard validates your API key against Devin's API in real time. After setup,
 2. Optionally select relevant text on the page
 3. Click the extension icon
 4. Write a task description
-5. (Optional) Paste browser errors if something is broken on the page
-6. Select a repo and hit **Start Devin Session**
+5. (Optional) Click **Capture Page** to attach a screenshot of what you're looking at
+6. (Optional) Paste browser errors if something is broken on the page
+7. Select a repo and hit **Start Devin Session**
 
 The extension automatically includes the page URL and any selected text as context. When Devin finishes and creates a PR, you'll get a browser notification. Click it to go straight to the PR on GitHub.
 
@@ -38,6 +39,7 @@ The extension automatically includes the page URL and any selected text as conte
 - **Auto URL + text capture**: the current page URL and any selected text are automatically included as context in the Devin prompt. No copy/paste needed
 - **Browser error input**: optional collapsible field to paste console errors, with a built-in plain-language guide for non-technical users on how to find them (right-click > Inspect > Console)
 - **Prompt preview**: expand "Preview what Devin will see" to review the full assembled prompt (description + URL + selected text + errors) before sending
+- **Page screenshot capture**: click "Capture Page" to take a screenshot of the current tab. Shows a thumbnail preview before submitting. The screenshot is uploaded to Devin's attachment API and included in the session prompt so Devin can see what you see
 - **Sensitive URL warnings**: if the page URL contains tokens, passwords, session IDs, or other secrets (`token=`, `password=`, `secret=`, `key=`, `auth=`, `session=`), a yellow warning banner appears before you submit
 
 ### Session Tracking
@@ -103,15 +105,16 @@ All API errors show a user-friendly message by default, with an expandable "Show
 
 ```
 User opens popup
-  → content.js grabs selected text from active tab (on-demand injection)
-  → popup.js displays form with auto-captured context (URL, selection)
-  → User writes description, selects repo, submits
-  → popup.js sends message to background.js
-  → background.js calls Devin API to create session
-  → background.js begins polling via chrome.alarms (exponential backoff)
-  → On PR created: fires "PR Ready" notification + badge
-  → On completion: fires "Done" notification + badge
-  → User clicks notification → opens PR on GitHub
+  > content.js grabs selected text from active tab (on-demand injection)
+  > popup.js displays form with auto-captured context (URL, selection)
+  > User writes description, optionally captures a page screenshot, selects repo, submits
+  > If screenshot attached: background.js uploads it to Devin's attachment API
+  > popup.js sends message to background.js
+  > background.js calls Devin API to create session (with ATTACHMENT: line if screenshot was uploaded)
+  > background.js begins polling via chrome.alarms (exponential backoff)
+  > On PR created: fires "PR Ready" notification + badge
+  > On completion: fires "Done" notification + badge
+  > User clicks notification > opens PR on GitHub
 ```
 
 ## APIs
@@ -121,6 +124,7 @@ User opens popup
 Uses the [Devin v1 API](https://docs.devin.ai/api-reference/overview):
 
 - `POST /v1/sessions` - create a session with a prompt
+- `POST /v1/attachments` - upload a screenshot file for Devin to reference
 - `GET /v1/sessions/{id}` - poll for status and PR URL
 - `GET /v1/sessions?limit=1` - used to verify API key during setup
 - Session statuses: `working` > `finished` (success) or `expired` (failure)
