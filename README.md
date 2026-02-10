@@ -1,94 +1,136 @@
 # Devin Browser Extension
 
-Chrome extension that lets you trigger Devin sessions straight from any webpage. Select some text, describe the bug, hit submit — the extension grabs the page URL and selection as context and kicks off a Devin session. You get a notification when the PR lands.
+A Chrome extension that lets you trigger Devin AI sessions from any webpage. Describe a bug or task, and the extension automatically captures page context (URL, selected text) and fires off a Devin session via their API. Get a browser notification when the PR is ready.
 
-Vanilla JS, no frameworks, no build step. Just load it unpacked and go.
+Built with **Manifest V3, vanilla HTML/CSS/JS** — no frameworks, no build tools, no dependencies.
 
 ## Install
 
-1. `chrome://extensions` → enable **Developer mode**
-2. **Load unpacked** → select this folder
-3. Pin it to your toolbar
+1. Open `chrome://extensions` in Chrome
+2. Enable **Developer mode** (top-right toggle)
+3. Click **Load unpacked** and select this folder
+4. Pin the extension to your toolbar
 
 ## Setup
 
-First time you open it, there's a quick setup wizard:
+On first click, an inline setup wizard walks you through three steps:
 
-1. Paste your Devin API key (it verifies against the API before letting you continue)
-2. Add your repos — paste GitHub URLs or type `owner/repo`
-3. Done
+1. **Welcome** — overview of what the extension does and a link to get a Devin API key
+2. **API Key** — paste your key and verify it works with a live API check before proceeding
+3. **Repos** — add one or more repos by pasting GitHub URLs or typing `owner/repo` (shown as removable chips)
 
-You can change any of this later from Settings. Sign out brings you back to the wizard.
+The wizard validates your API key against Devin's API in real time. After setup, you can always change your key or repos from the Settings page. A "Start over" button lets you re-run the wizard at any time.
 
 ## Usage
 
-1. Go to a page with a bug or something you want Devin to work on
-2. Select relevant text if there is any
-3. Click the extension → write what you need → pick a repo → submit
-4. Optionally paste console errors if something's broken on the page
+1. Navigate to any webpage related to a bug or task
+2. Optionally select relevant text on the page
+3. Click the extension icon
+4. Write a task description
+5. (Optional) Paste browser errors if something is broken on the page
+6. Select a repo and hit **Start Devin Session**
 
-The page URL and selected text get bundled into the prompt automatically. There's a "Preview what Devin will see" toggle so you can double-check before sending.
+The extension automatically includes the page URL and any selected text as context. When Devin finishes and creates a PR, you'll get a browser notification — click it to go straight to the PR on GitHub.
 
-## What it does
+## Features
 
-**Context capture** — URL and selected text are grabbed automatically. There's also a console errors field with a plain-language guide for people who aren't sure how to open DevTools. If the URL has tokens or passwords in it, you'll see a warning before submitting.
+### Context Capture
+- **Auto URL + text capture** — the current page URL and any selected text are automatically included as context in the Devin prompt. No copy/paste needed
+- **Browser error input** — optional collapsible field to paste console errors, with a built-in plain-language guide for non-technical users on how to find them (right-click → Inspect → Console)
+- **Prompt preview** — expand "Preview what Devin will see" to review the full assembled prompt (description + URL + selected text + errors) before sending
+- **Sensitive URL warnings** — if the page URL contains tokens, passwords, session IDs, or other secrets (`token=`, `password=`, `secret=`, `key=`, `auth=`, `session=`), a yellow warning banner appears before you submit
 
-**Session tracking** — Your last 20 sessions show up in the Sessions tab with live status: Running → PR Ready → Done (or Failed). Each one links out to the Devin session and the GitHub PR. Timestamps show relative time ("2m ago", "1h ago"). Older sessions get dropped automatically when you hit 20.
+### Session Tracking
+- **Live status updates** — view your last 20 sessions with four status states:
+  - **Running** — session in progress, no PR yet
+  - **PR Ready** — Devin created a PR but is still working
+  - **Done** — session completed or PR merged on GitHub
+  - **Failed** — session errored out or timed out
+- **Deep links** — each session has clickable links to both the Devin session page and the GitHub PR
+- **Relative timestamps** — shows "just now", "2m ago", "1h ago", etc.
+- **Session persistence** — session history is preserved even if you sign out and sign back in with a different API key. Only the 20 most recent sessions are kept; older ones are automatically purged
 
-**Notifications** — You get a browser notification when a PR first appears, when the session finishes, when a PR gets merged, or if something fails. Click the notification to jump straight to the PR or the Devin session. There's also a red badge count on the extension icon that clears when you open the popup.
+### Notifications
+- **Browser notifications** at key moments:
+  - PR first created (PR Ready)
+  - Session finished
+  - PR merged on GitHub
+  - Session failed or timed out
+- **Click to open** — clicking any notification jumps directly to the PR or Devin session
+- **Icon badge** — a red notification count appears on the extension icon whenever something needs attention. Badge clears when you open the popup
 
-**Polling** — Background polling checks for status changes on a 15s → 30s → 1m → 2m backoff schedule using `chrome.alarms` (so it survives service worker restarts). If Chrome restarts or the extension reloads, polling picks back up for any active sessions. Sessions time out after 24 hours.
+### Polling & Merge Detection
+- **Exponential backoff polling** — 15s → 30s → 1m → 2m (capped). Sessions time out after 24 hours
+- **Polling resumes automatically** — if Chrome restarts or the extension reloads, polling picks back up for all active sessions via `chrome.alarms`
+- **GitHub PR merge detection** — polls GitHub's public API to detect when a PR is merged, even if Devin still reports "working", and automatically marks the session as Done
 
-**PR merge detection** — Even if Devin still says "working", the extension checks GitHub's public API to see if the PR has been merged and marks it as Done. Works for public GitHub repos (60 req/hour unauthenticated).
-
-**Idle lock** — If you haven't used it in 30 minutes, you have to click "Unlock" before submitting. Just a guard against accidental use on a shared machine.
-
-**Session persistence** — Your session history sticks around even if you sign out and back in with a different API key.
+### Account & Settings
+- **Idle lock** — after 30 minutes of inactivity, the popup requires a click to unlock before you can submit tasks (prevents accidental use on a shared machine)
+- **Sign out** — sign out from the main UI to switch API keys or re-run the setup wizard
+- **Settings page** — full options page to manage your API key (masked display with verify button), repo list (add/remove), and data (clear sessions, reset everything with confirmation dialog)
 
 ## Security
 
-- API key lives in `chrome.storage.local` (Chrome's sandbox). Shown as `••••••••last4` in settings
-- URLs with tokens/passwords/secrets get flagged before sending
-- Notification click URLs are checked against an allowlist (github.com, app.devin.ai, etc.) and must be HTTPS
-- All user content is HTML-escaped before rendering — descriptions, URLs, repo names all go through `escapeHtml()` and `safeHref()`
-- Background worker only accepts messages from the extension's own runtime ID
-- Content script is injected on-demand, not persistent — it literally just reads `window.getSelection()` and returns
+- **API key storage** — stored in `chrome.storage.local`, sandboxed by Chrome's extension security model. Displayed as `••••••••last4` in the settings page
+- **Sensitive URL detection** — warns before sending URLs that contain tokens, passwords, or session IDs to the Devin API
+- **Notification URL allowlist** — notification click URLs are validated against a strict allowlist (`github.com`, `app.devin.ai`, `gitlab.com`, `bitbucket.org`) and must use HTTPS
+- **XSS prevention** — all user-generated content (descriptions, URLs, repo names) is HTML-escaped before rendering. Links use `safeHref()` validation
+- **Message origin validation** — the background service worker only accepts messages from the extension's own runtime ID
+- **No persistent content script** — content script is injected on-demand only when the popup opens, solely to read `window.getSelection()`. No DOM manipulation, no event listeners
 
 ## Error Handling
 
-API errors get a friendly message with an expandable "Show details" section:
+All API errors show a user-friendly message by default, with an expandable "Show details" section for debugging:
 
-| Error | What you see |
+| Scenario | Message |
 |---|---|
 | Network error | "Couldn't reach Devin. Check your internet connection." |
-| 401 | "Invalid API key. Check your settings." |
-| 429 | "Too many requests. Try again in a moment." |
-| 5xx | "Devin is having issues. Try again later." |
-| Other | "Something went wrong." |
+| 401 Unauthorized | "Invalid API key. Check your settings." |
+| 429 Rate Limited | "Too many requests. Try again in a moment." |
+| 500+ Server Error | "Devin is having issues. Try again later." |
+| Unknown | "Something went wrong." |
 
 ## Architecture
 
-| Component | Files | What it does |
+| Component | Files | Role |
 |---|---|---|
 | Popup | `popup/` | Main UI — task form, session list, setup wizard |
 | Background | `background/background.js` | Service worker — API calls, polling, notifications, badge |
-| Content | `content/content.js` | On-demand script to grab selected text |
-| Options | `options/` | Settings — API key, repos, data management |
+| Content | `content/content.js` | Injected on-demand to grab selected text |
+| Options | `options/` | Settings page — API key, repos, data management |
+
+### Data Flow
 
 ```
 User opens popup
-  → content.js grabs selected text (injected on demand)
-  → popup.js shows the form with URL + selection pre-filled
-  → User writes description, picks repo, submits
-  → message goes to background.js
-  → background.js hits Devin API, starts polling via chrome.alarms
-  → PR shows up → "PR Ready" notification + badge
-  → Session finishes → "Done" notification + badge
-  → Click notification → opens the PR on GitHub
+  → content.js grabs selected text from active tab (on-demand injection)
+  → popup.js displays form with auto-captured context (URL, selection)
+  → User writes description, selects repo, submits
+  → popup.js sends message to background.js
+  → background.js calls Devin API to create session
+  → background.js begins polling via chrome.alarms (exponential backoff)
+  → On PR created: fires "PR Ready" notification + badge
+  → On completion: fires "Done" notification + badge
+  → User clicks notification → opens PR on GitHub
 ```
 
 ## APIs
 
-**Devin** — [v1 API](https://docs.devin.ai/api-reference/overview): `POST /sessions` to create, `GET /sessions/{id}` to poll. Auth via `Bearer` token. Also hits `GET /sessions?limit=1` to verify the API key during setup.
+### Devin API
 
-**GitHub** — Public REST API (unauthenticated, 60/hr): `GET /repos/{owner}/{repo}/pulls/{number}` to check if a PR has been merged. Only works for github.com URLs.
+Uses the [Devin v1 API](https://docs.devin.ai/api-reference/overview):
+
+- `POST /v1/sessions` — create a session with a prompt
+- `GET /v1/sessions/{id}` — poll for status and PR URL
+- `GET /v1/sessions?limit=1` — used to verify API key during setup
+- Session statuses: `working` → `finished` (success) or `expired` (failure)
+- PR URL available via `pull_request.url` in the session response
+- Auth: `Authorization: Bearer {api_key}`
+
+### GitHub API
+
+Uses the public GitHub REST API (unauthenticated, 60 requests/hour) to detect PR merges:
+
+- `GET /repos/{owner}/{repo}/pulls/{number}` — checks `merged` field
+- If Devin still reports "working" but the PR is merged, the session is automatically marked as Done
+- Only supports `github.com` PR URLs. Non-GitHub or private repos fall back to Devin-only status tracking
