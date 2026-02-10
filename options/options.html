@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Devin Browser Extension — Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Devin Browser Extension Settings</h1>
+
+    <!-- API Key -->
+    <section class="card">
+      <h2>API Key</h2>
+      <div class="key-display">
+        <span id="keyMask" class="key-mask">Not configured</span>
+        <button id="changeKeyBtn" class="btn btn-secondary btn-sm">Change</button>
+        <button id="verifyKeyBtn" class="btn btn-secondary btn-sm" disabled>Verify</button>
+      </div>
+      <div id="keyEditSection" class="hidden">
+        <input type="password" id="apiKeyInput" class="input" placeholder="apk_user_..." autocomplete="off">
+        <div class="btn-row">
+          <button id="saveKeyBtn" class="btn btn-primary btn-sm">Save</button>
+          <button id="cancelKeyBtn" class="btn btn-secondary btn-sm">Cancel</button>
+        </div>
+      </div>
+      <div id="keyStatus" class="status-msg hidden"></div>
+    </section>
+
+    <!-- Repos -->
+    <section class="card">
+      <h2>Repositories</h2>
+      <div class="repo-add-row">
+        <input type="text" id="repoInput" class="input" placeholder="https://github.com/owner/repo">
+        <button id="addRepoBtn" class="btn btn-primary btn-sm">Add</button>
+      </div>
+      <div id="repoError" class="error-msg hidden"></div>
+      <ul id="repoList" class="repo-list"></ul>
+      <p id="repoEmpty" class="empty-text">No repositories added.</p>
+    </section>
+
+    <!-- Data -->
+    <section class="card">
+      <h2>Data</h2>
+      <p class="card-hint">Only the 20 most recent sessions are kept. Older sessions are automatically removed.</p>
+      <div class="btn-row">
+        <button id="clearSessionsBtn" class="btn btn-secondary btn-sm">Clear Session History</button>
+        <button id="resetAllBtn" class="btn btn-danger btn-sm">Reset All Settings</button>
+      </div>
+      <div id="dataStatus" class="status-msg hidden"></div>
+    </section>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div id="confirmOverlay" class="overlay hidden">
+    <div class="confirm-dialog">
+      <p id="confirmMsg"></p>
+      <div class="btn-row">
+        <button id="confirmYes" class="btn btn-danger btn-sm">Confirm</button>
+        <button id="confirmNo" class="btn btn-secondary btn-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

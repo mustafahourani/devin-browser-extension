@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=400">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Lock Screen -->
+  <div id="lockScreen" class="screen hidden">
+    <div class="lock-container">
+      <div class="lock-icon">&#128274;</div>
+      <p class="lock-text">Session locked due to inactivity</p>
+      <button id="unlockBtn" class="btn btn-primary">Unlock</button>
+    </div>
+  </div>
+
+  <!-- Setup Wizard -->
+  <div id="wizard" class="screen hidden">
+    <div id="wizardHeader" class="wizard-header hidden">
+      <div class="wizard-title-row">
+        <h2>Setup</h2>
+        <button id="wizardCancelBtn" class="wizard-cancel hidden">Start over</button>
+      </div>
+      <div class="wizard-steps-indicator">
+        <span class="step-dot active" data-step="1">1</span>
+        <span class="step-line"></span>
+        <span class="step-dot" data-step="2">2</span>
+        <span class="step-line"></span>
+        <span class="step-dot" data-step="3">3</span>
+      </div>
+    </div>
+
+    <!-- Welcome Screen -->
+    <div id="wizardWelcome" class="wizard-step">
+      <div class="welcome-screen">
+        <img src="../icons/icon128.png" alt="Devin" class="welcome-icon-img">
+        <h2 class="welcome-title">Devin Browser Extension</h2>
+        <p class="welcome-tagline">Send tasks to Devin AI right from your browser.</p>
+        <ul class="welcome-features">
+          <li>Describe a bug or task on any webpage</li>
+          <li>Devin writes the code and opens a PR</li>
+          <li>Get notified when the PR is ready</li>
+        </ul>
+        <p class="welcome-prereq">You'll need a <a href="https://app.devin.ai/settings" target="_blank">Devin API key</a> to get started.</p>
+        <button id="wizardStartBtn" class="btn btn-primary">Set Up</button>
+      </div>
+    </div>
+
+    <!-- Step 1: API Key -->
+    <div id="wizardStep1" class="wizard-step hidden">
+      <h3>Enter your Devin API key</h3>
+      <p class="wizard-hint">Find it in your <a href="https://app.devin.ai/settings" target="_blank">Devin settings</a></p>
+      <input type="password" id="wizardApiKey" class="input" placeholder="apk_user_..." autocomplete="off">
+      <div id="wizardStep1Error" class="error-msg hidden"></div>
+      <button id="wizardVerifyBtn" class="btn btn-primary">Verify</button>
+    </div>
+
+    <!-- Step 2: Add Repos -->
+    <div id="wizardStep2" class="wizard-step hidden">
+      <h3>Add your repositories</h3>
+      <p class="wizard-hint">Paste a GitHub link or type owner/repo</p>
+      <div class="repo-input-row">
+        <input type="text" id="wizardRepoInput" class="input" placeholder="https://github.com/owner/repo">
+        <button id="wizardAddRepoBtn" class="btn btn-secondary">Add</button>
+      </div>
+      <div id="wizardRepoList" class="repo-chips"></div>
+      <div id="wizardStep2Error" class="error-msg hidden"></div>
+      <button id="wizardNextBtn" class="btn btn-primary" disabled>Next</button>
+    </div>
+
+    <!-- Step 3: Done -->
+    <div id="wizardStep3" class="wizard-step hidden">
+      <div class="wizard-done">
+        <div class="done-icon">&#10003;</div>
+        <h3>You're all set!</h3>
+        <p class="wizard-hint">Start sending tasks to Devin from any webpage.</p>
+        <button id="wizardDoneBtn" class="btn btn-primary">Get Started</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main UI -->
+  <div id="mainUI" class="screen hidden">
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <button class="tab active" data-tab="newTask">New Task</button>
+      <button class="tab" data-tab="sessions">Sessions</button>
+      <button id="openSettings" class="settings-btn" title="Settings">&#9881;</button>
+      <button id="signOutBtn" class="signout-btn" title="Sign out &amp; reset">Sign out</button>
+    </div>
+
+    <!-- New Task Tab -->
+    <div id="newTaskTab" class="tab-panel">
+      <!-- Context -->
+      <div class="context-section">
+        <div class="context-url">
+          <span class="context-label">URL</span>
+          <span id="urlText" class="context-value"></span>
+        </div>
+        <div id="urlWarning" class="warning hidden">
+          &#9888; This URL may contain sensitive information. It will be included in the request.
+        </div>
+        <div id="selectionBlock" class="context-selection hidden">
+          <button id="toggleSelection" class="context-toggle">
+            <span class="toggle-arrow">&#9654;</span> Page Selection <span id="selectionCharCount" class="char-count"></span>
+          </button>
+          <div id="selectionContent" class="selection-content hidden">
+            <pre id="selectionText"></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="form-section">
+        <textarea id="description" class="input textarea" placeholder="Describe the bug or task..." rows="4"></textarea>
+
+        <div class="console-section">
+          <button id="toggleConsole" class="context-toggle">
+            <span class="toggle-arrow">&#9654;</span> Add browser errors (optional)
+          </button>
+          <div id="consoleInput" class="hidden">
+            <textarea id="consoleErrors" class="input textarea mono" placeholder="Paste error messages here..." rows="3"></textarea>
+            <p class="hint">If you see a red error on the page: right-click the page &#8594; Inspect &#8594; click the Console tab at the top &#8594; copy the red error text and paste it here. This helps Devin understand what went wrong.</p>
+          </div>
+        </div>
+
+        <select id="repoSelect" class="input select">
+          <option value="">Select a repository...</option>
+        </select>
+
+        <div class="preview-header">
+          <span class="preview-label">Prompt preview</span>
+          <button id="togglePreview" class="preview-toggle">Show</button>
+        </div>
+        <div id="previewSection" class="hidden">
+          <pre id="promptPreview" class="preview-box"></pre>
+        </div>
+
+        <div id="submitError" class="error-block hidden">
+          <div class="error-friendly" id="submitErrorMsg"></div>
+          <button class="error-details-toggle" id="toggleErrorDetails">Show details</button>
+          <pre class="error-details hidden" id="submitErrorDetails"></pre>
+        </div>
+
+        <button id="submitBtn" class="btn btn-submit" disabled>Start Devin Session</button>
+      </div>
+    </div>
+
+    <!-- Sessions Tab -->
+    <div id="sessionsTab" class="tab-panel hidden">
+      <div id="sessionsList"></div>
+      <div id="emptyState" class="empty-state hidden">
+        <p>No sessions yet</p>
+        <p class="hint">Create a task from the "New Task" tab to get started.</p>
+      </div>
+      <p class="sessions-limit-note">Only the 20 most recent sessions are kept. Older sessions are automatically removed.</p>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
